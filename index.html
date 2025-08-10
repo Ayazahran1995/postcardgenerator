@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Postcard Creator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+        input[type="color"]::-webkit-color-swatch {
+            border-radius: 9999px; /* Tailwind's rounded-full */
+            border: none;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-4 bg-sky-100 text-gray-800 font-inter">
+
+    <h1 class="mb-8 text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-purple-600 drop-shadow-xl">
+        Postcard Creator
+    </h1>
+
+    <div class="flex flex-col items-center w-full max-w-4xl p-8 bg-white rounded-2xl shadow-3xl">
+
+        <!-- Control Panel -->
+        <div class="flex flex-wrap items-center justify-center w-full p-4 mb-6 space-y-4 rounded-xl md:space-y-0 md:space-x-4 bg-blue-100">
+            <div class="flex items-center space-x-2">
+                <label for="brushSize" class="text-gray-600">Size:</label>
+                <input
+                    type="range"
+                    id="brushSize"
+                    min="1"
+                    max="50"
+                    value="5"
+                    class="w-24 h-2 rounded-lg appearance-none cursor-pointer bg-blue-200"
+                />
+            </div>
+            
+            <div class="flex items-center space-x-2">
+                <label class="text-gray-600">Style:</label>
+                <div id="styleButtons" class="flex flex-wrap justify-center gap-2">
+                    <button id="standardBtn" class="px-4 py-2 font-semibold text-white transition-all duration-200 rounded-lg shadow-lg hover:scale-105 active:scale-95 bg-blue-600 ring-2 ring-blue-500 transform scale-110">
+                        Standard
+                    </button>
+                    <button id="impressionistBtn" class="px-4 py-2 font-semibold text-white transition-all duration-200 rounded-lg shadow-lg hover:scale-105 active:scale-95 bg-orange-500">
+                        Impressionist
+                    </button>
+                    <button id="pointillistBtn" class="px-4 py-2 font-semibold text-white transition-all duration-200 rounded-lg shadow-lg hover:scale-105 active:scale-95 bg-teal-500">
+                        Pointillist
+                    </button>
+                    <button id="expressionistBtn" class="px-4 py-2 font-semibold text-white transition-all duration-200 rounded-lg shadow-lg hover:scale-105 active:scale-95 bg-purple-500">
+                        Expressionist
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-2">
+                <label class="text-gray-600">Color:</label>
+                <div id="colorPalette" class="flex space-x-1">
+                    <button class="w-8 h-8 rounded-full border-2 transition-transform duration-100 shadow-md border-blue-400 scale-110" style="background-color: #2563eb;"></button>
+                    <button class="w-8 h-8 rounded-full border-2 transition-transform duration-100 shadow-md border-transparent" style="background-color: #ef4444;"></button>
+                    <button class="w-8 h-8 rounded-full border-2 transition-transform duration-100 shadow-md border-transparent" style="background-color: #10b981;"></button>
+                    <button class="w-8 h-8 rounded-full border-2 transition-transform duration-100 shadow-md border-transparent" style="background-color: #fcd34d;"></button>
+                    <button class="w-8 h-8 rounded-full border-2 transition-transform duration-100 shadow-md border-transparent" style="background-color: #f97316;"></button>
+                    <button class="w-8 h-8 rounded-full border-2 transition-transform duration-100 shadow-md border-transparent" style="background-color: #a855f7;"></button>
+                </div>
+                <input
+                    type="color"
+                    id="brushColor"
+                    value="#2563eb"
+                    class="w-10 h-10 rounded-full cursor-pointer bg-transparent border-none"
+                />
+            </div>
+        </div>
+
+        <!-- Main Canvas and Buttons -->
+        <div class="relative w-full overflow-hidden rounded-xl shadow-inner aspect-[4/3] max-w-[800px] max-h-[600px] bg-white border border-gray-300">
+            <canvas id="drawingCanvas" class="w-full h-full"></canvas>
+            <div id="instructions" class="absolute inset-0 flex items-center justify-center p-4 text-center text-gray-500 bg-white bg-opacity-70">
+                <p class="text-lg">Click or tap to start drawing your postcard!</p>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex flex-wrap justify-center gap-4 p-4 mt-6">
+            <button id="eraserBtn" class="px-4 py-2 font-semibold text-white transition-all duration-200 rounded-lg shadow-lg hover:scale-105 active:scale-95 bg-red-600">
+                Eraser
+            </button>
+            <button id="clearBtn" class="px-4 py-2 font-semibold text-white transition-all duration-200 rounded-lg shadow-lg hover:scale-105 active:scale-95 bg-blue-500 hover:bg-blue-600">
+                Clear
+            </button>
+            <button id="downloadBtn" class="px-4 py-2 font-semibold text-white transition-all duration-200 rounded-lg shadow-lg hover:scale-105 active:scale-95 bg-teal-500 hover:bg-teal-600">
+                Download Postcard
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- Canvas Setup and State Management ---
+        const canvas = document.getElementById('drawingCanvas');
+        const ctx = canvas.getContext('2d');
+        const instructions = document.getElementById('instructions');
+
+        let isDrawing = false;
+        let brushColor = '#2563eb';
+        let brushSize = 5;
+        let brushStyle = 'standard';
+        const canvasBackground = '#ffffff';
+
+        // Set up the canvas dimensions and initial background
+        const resizeCanvas = () => {
+            canvas.width = Math.min(window.innerWidth * 0.9, 800);
+            canvas.height = Math.min(window.innerHeight * 0.7, 600);
+            ctx.fillStyle = canvasBackground;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        };
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        // --- Drawing Logic ---
+        function startDrawing(e) {
+            const { offsetX, offsetY } = e;
+            ctx.beginPath();
+            ctx.moveTo(offsetX, offsetY);
+            isDrawing = true;
+            instructions.style.display = 'none';
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+
+            const { offsetX, offsetY } = e;
+
+            switch (brushStyle) {
+                case 'standard':
+                    ctx.lineWidth = brushSize;
+                    ctx.strokeStyle = brushColor;
+                    ctx.lineTo(offsetX, offsetY);
+                    ctx.stroke();
+                    break;
+                case 'impressionist':
+                    ctx.lineWidth = brushSize * 2;
+                    ctx.strokeStyle = brushColor;
+                    ctx.globalAlpha = 0.5;
+                    ctx.beginPath();
+                    ctx.moveTo(offsetX + (Math.random() * 5), offsetY + (Math.random() * 5));
+                    ctx.lineTo(offsetX, offsetY);
+                    ctx.stroke();
+                    ctx.globalAlpha = 1.0;
+                    break;
+                case 'pointillist':
+                    ctx.beginPath();
+                    ctx.fillStyle = brushColor;
+                    ctx.arc(offsetX, offsetY, brushSize / 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    break;
+                case 'expressionist':
+                    ctx.lineWidth = brushSize * 1.5;
+                    ctx.strokeStyle = brushColor;
+                    ctx.lineTo(offsetX + (Math.random() * 2), offsetY + (Math.random() * 2));
+                    ctx.stroke();
+                    break;
+                case 'eraser':
+                    ctx.lineWidth = brushSize * 2;
+                    ctx.strokeStyle = canvasBackground;
+                    ctx.lineTo(offsetX, offsetY);
+                    ctx.stroke();
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        function stopDrawing() {
+            ctx.closePath();
+            isDrawing = false;
+        }
+
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseleave', stopDrawing);
+        canvas.addEventListener('mousemove', draw);
+
+        // Handle touch events
+        canvas.addEventListener('touchstart', (e) => startDrawing(e.touches[0]));
+        canvas.addEventListener('touchend', stopDrawing);
+        canvas.addEventListener('touchcancel', stopDrawing);
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault(); // Prevent scrolling on mobile
+            draw(e.touches[0]);
+        }, { passive: false });
+
+        // --- UI Event Listeners ---
+        const brushSizeInput = document.getElementById('brushSize');
+        brushSizeInput.addEventListener('input', (e) => {
+            brushSize = e.target.value;
+        });
+
+        const colorPicker = document.getElementById('brushColor');
+        colorPicker.addEventListener('input', (e) => {
+            brushColor = e.target.value;
+            // Update the selected color in the palette
+            const paletteButtons = document.querySelectorAll('#colorPalette button');
+            paletteButtons.forEach(btn => {
+                if (btn.style.backgroundColor === brushColor) {
+                    btn.classList.add('border-blue-400', 'scale-110');
+                    btn.classList.remove('border-transparent');
+                } else {
+                    btn.classList.remove('border-blue-400', 'scale-110');
+                    btn.classList.add('border-transparent');
+                }
+            });
+        });
+
+        const colorPalette = document.getElementById('colorPalette');
+        colorPalette.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') {
+                brushColor = e.target.style.backgroundColor;
+                colorPicker.value = rgbToHex(brushColor);
+                const paletteButtons = document.querySelectorAll('#colorPalette button');
+                paletteButtons.forEach(btn => btn.classList.remove('border-blue-400', 'scale-110'));
+                e.target.classList.add('border-blue-400', 'scale-110');
+                e.target.classList.remove('border-transparent');
+            }
+        });
+        
+        function rgbToHex(rgb) {
+            const parts = rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+            if (!parts) return '#000000';
+            const r = parseInt(parts[1]).toString(16).padStart(2, '0');
+            const g = parseInt(parts[2]).toString(16).padStart(2, '0');
+            const b = parseInt(parts[3]).toString(16).padStart(2, '0');
+            return `#${r}${g}${b}`;
+        }
+
+        const styleButtons = document.getElementById('styleButtons');
+        styleButtons.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') {
+                // Remove active style from all buttons
+                const buttons = styleButtons.querySelectorAll('button');
+                buttons.forEach(btn => btn.classList.remove('ring-2', 'ring-blue-500', 'transform', 'scale-110'));
+                // Add active style to the clicked button
+                e.target.classList.add('ring-2', 'ring-blue-500', 'transform', 'scale-110');
+                brushStyle = e.target.id.replace('Btn', '');
+            }
+        });
+
+        document.getElementById('eraserBtn').addEventListener('click', () => {
+            brushStyle = 'eraser';
+            const buttons = styleButtons.querySelectorAll('button');
+            buttons.forEach(btn => btn.classList.remove('ring-2', 'ring-blue-500', 'transform', 'scale-110'));
+            document.getElementById('eraserBtn').classList.add('ring-2', 'ring-blue-500', 'transform', 'scale-110');
+        });
+
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            ctx.fillStyle = canvasBackground;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            instructions.style.display = 'flex';
+        });
+
+        document.getElementById('downloadBtn').addEventListener('click', () => {
+            const image = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.href = image;
+            link.download = 'my-postcard.png';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+    </script>
+
+</body>
+</html>
